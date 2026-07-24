@@ -128,7 +128,7 @@ def resource_path(relative_path: str) -> str:
 def get_app_base_dir() -> str:
     """Return the directory for persistent app data."""
     if getattr(sys, "frozen", False):
-        return os.path.dirname(os.path.abspath(sys.executable))
+        return os.path.dirname(os.path.realpath(sys.executable))
     return os.path.dirname(os.path.abspath(__file__))
 
 

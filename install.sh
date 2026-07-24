@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_BIN="${1:-$SCRIPT_DIR/PathfinderBuildTool}"
 
 if [[ ! -f "$SOURCE_BIN" ]]; then
