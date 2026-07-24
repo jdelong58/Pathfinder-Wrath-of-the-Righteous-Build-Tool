@@ -668,11 +668,12 @@ class LoadMythicPath(BuildSelector):
         with get_connection() as conn:
             rows = conn.execute(
                 "SELECT character_level, mythic_feat FROM builds"
-                " WHERE character_name=? AND build_type=?",
+                " WHERE character_name=? AND build_type=?"
+                " ORDER BY CAST(character_level AS INTEGER)",
                 (name, build_type),
             ).fetchall()
 
-        # Build a level→feat mapping; ignore levels outside 1–10
+        # Build a level-to-feat mapping; ignore levels outside 1-10
         feat_map: dict[int, str] = {}
         for row in rows:
             try:
