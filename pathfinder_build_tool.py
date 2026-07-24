@@ -1235,6 +1235,7 @@ def main() -> None:
         notebook.add(frame, text=title)
 
     def _refresh_current_tab(event=None):
+        """Refresh current tab selectors when a notebook tab is selected."""
         tab_id = notebook.select()
         if tab_id:
             frame = notebook.nametowidget(tab_id)
