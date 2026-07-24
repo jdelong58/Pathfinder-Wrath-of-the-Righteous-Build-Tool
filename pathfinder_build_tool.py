@@ -594,14 +594,15 @@ class LoadMythicPath(BuildSelector):
     """
     'View Mythic Feat' tab.
 
-    Displays a two-column list (Level | Mythic Feat) for ALL levels of the
-    selected character name + build type.  The Character Level dropdown is
-    omitted from this tab; only Name and Build Type are required.
+    Displays a two-column Treeview (Level | Mythic Feat) for mythic levels
+    1–10 of the selected character name + build type.  Exactly 10 rows are
+    always shown; levels with no feat in the database are left blank.
+    The Character Level dropdown is omitted from this tab; only Name and
+    Build Type are required.
     """
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, **kwargs)
-        self._result_widgets: list[tk.Widget] = []   # widgets created per-load
         self._build_ui()
         self.populate_names()
 
@@ -617,26 +618,42 @@ class LoadMythicPath(BuildSelector):
 
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=10, pady=5)
 
-        # Scrollable results area
-        canvas = tk.Canvas(self, bg=BG, highlightthickness=0)
-        vsb = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.result_frame = tk.Frame(canvas, bg=BG)
-        self.result_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
+        # Style the Treeview to match the app's dark theme
+        style = ttk.Style()
+        style.configure(
+            "Mythic.Treeview",
+            background=BG,
+            foreground=FG,
+            fieldbackground=BG,
+            rowheight=24,
+            font=FONT,
         )
-        canvas.create_window((0, 0), window=self.result_frame, anchor="nw")
-        canvas.configure(yscrollcommand=vsb.set)
-        canvas.pack(side="left", fill="both", expand=True, padx=(10, 0))
-        vsb.pack(side="right", fill="y")
+        style.configure(
+            "Mythic.Treeview.Heading",
+            background=ACCENT,
+            foreground=FG,
+            font=FONT_BOLD,
+        )
+        style.map("Mythic.Treeview", background=[("selected", ACCENT_HOVER)])
 
-        # Column headers (always visible)
-        make_label(self.result_frame, "Level", bold=True, anchor="center",
-                   width=10).grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 2))
-        make_label(self.result_frame, "Mythic Feat", bold=True, anchor="w",
-                   width=45).grid(row=0, column=1, sticky="w", padx=5, pady=(5, 2))
-        ttk.Separator(self.result_frame, orient="horizontal").grid(
-            row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=2)
+        # Treeview with two fixed columns – no scrollbar needed for 10 rows
+        self.tree = ttk.Treeview(
+            self,
+            style="Mythic.Treeview",
+            columns=("level", "feat"),
+            show="headings",
+            height=10,
+            selectmode="none",
+        )
+        self.tree.heading("level", text="Level", anchor="center")
+        self.tree.heading("feat", text="Mythic Feat", anchor="w")
+        self.tree.column("level", width=80, anchor="center", stretch=False)
+        self.tree.column("feat", width=400, anchor="w", stretch=True)
+        self.tree.pack(fill="both", expand=True, padx=10, pady=5)
+
+        # Pre-populate 10 empty rows so levels 1–10 are always visible
+        for lvl in range(1, 11):
+            self.tree.insert("", "end", iid=str(lvl), values=(str(lvl), ""))
 
     # ── Load action ─────────────────────────────────────────────────────────
 
@@ -656,32 +673,19 @@ class LoadMythicPath(BuildSelector):
                 (name, build_type),
             ).fetchall()
 
-        # Clear previous result widgets (keep the header at rows 0-1)
-        for widget in self._result_widgets:
-            if widget.winfo_exists():
-                widget.destroy()
-        self._result_widgets.clear()
+        # Build a level-to-feat mapping; ignore levels outside 1-10
+        feat_map: dict[int, str] = {}
+        for row in rows:
+            try:
+                lvl = int(row["character_level"])
+            except (TypeError, ValueError):
+                continue
+            if 1 <= lvl <= 10:
+                feat_map[lvl] = row["mythic_feat"] or ""
 
-        for i, row in enumerate(rows):
-            grid_row = i + 2   # rows 0-1 are header + separator
-            level_lbl = make_label(
-                self.result_frame,
-                text=str(row["character_level"]),
-                anchor="center",
-                width=10,
-            )
-            level_lbl.grid(row=grid_row, column=0, sticky="ew", padx=5, pady=1)
-
-            feat_text = row["mythic_feat"] or ""
-            feat_lbl = make_label(
-                self.result_frame,
-                text=feat_text,
-                anchor="w",
-                width=45,
-            )
-            feat_lbl.grid(row=grid_row, column=1, sticky="w", padx=5, pady=1)
-
-            self._result_widgets.extend([level_lbl, feat_lbl])
+        # Update all 10 fixed rows (blank when no feat exists)
+        for lvl in range(1, 11):
+            self.tree.item(str(lvl), values=(str(lvl), feat_map.get(lvl, "")))
 
 
 # ── Tab 3: Create a Build ─────────────────────────────────────────────────────
