@@ -136,7 +136,7 @@ def get_database_path() -> str:
     """Return the SQLite database path and ensure its data directory exists."""
     data_dir = os.path.join(get_app_base_dir(), "data")
     os.makedirs(data_dir, exist_ok=True)
-    return os.path.join(data_dir, os.path.basename(DB_PATH))
+    return os.path.join(data_dir, "pathfinder.db")
 
 
 def get_connection() -> sqlite3.Connection:

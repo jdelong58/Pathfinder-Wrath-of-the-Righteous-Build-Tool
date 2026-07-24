@@ -32,7 +32,7 @@ if this file is not available, the program will not run.
 
 ### Database location
 
-- The app stores data in `data/pathfinder.db` next to the running script or executable.
+- The app stores data in a `data/` subdirectory next to the running script or executable (`data/pathfinder.db`).
 - If you already have a `pathfinder.db`, copy it into that `data/` folder to bring your builds into a packaged executable install.
 
 ### Optional icon for packaged builds
