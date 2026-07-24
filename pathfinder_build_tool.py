@@ -94,6 +94,20 @@ MT_SKILL_FIELDS = [
     ("mt_skill_Use_Magical_Device", "Use Magic Device:", "mt_umd"),
 ]
 
+CREATE_BUILD_EXTRA_FIELDS = [
+    ("mt_feat_1", "Mount Feat:", "mt_f1"),
+    ("mythic_feat", "Mythic Feat:", "myth"),
+]
+
+CREATE_BUILD_FIELDS = (
+    STAT_FIELDS
+    + SKILL_FIELDS
+    + OTHER_FIELDS
+    + MT_STAT_FIELDS
+    + MT_SKILL_FIELDS
+    + CREATE_BUILD_EXTRA_FIELDS
+)
+
 # Fields whose values must be numeric (or empty) when saving a build
 NUMERIC_DB_COLS = frozenset(
     col for col, *_ in STAT_FIELDS + SKILL_FIELDS + MT_STAT_FIELDS + MT_SKILL_FIELDS
@@ -655,7 +669,7 @@ class CreateBuild(BuildSelector):
     """
     'Create a Build' tab.
 
-    Bug #15 fix: update_database validates that stat/skill fields contain
+    Bug #15 fix: create_build/update_build validate that stat/skill fields contain
     only numeric (or empty) values before writing to the database.
     """
 
@@ -691,10 +705,14 @@ class CreateBuild(BuildSelector):
             values=[str(i) for i in range(1, 41)])
         self.level_combo.grid(row=0, column=5, sticky="w", **PAD)
 
-        make_button(sel, "Create Build", self.update_database).grid(
+        make_button(sel, "Create Build", self.create_build).grid(
             row=0, column=6, padx=10, pady=3)
-        make_button(sel, "Clear", self._clear_fields).grid(
+        make_button(sel, "Load Build", self.load_build).grid(
             row=0, column=7, padx=5, pady=3)
+        make_button(sel, "Update Build", self.update_build).grid(
+            row=0, column=8, padx=5, pady=3)
+        make_button(sel, "Clear", self._clear_fields).grid(
+            row=0, column=9, padx=5, pady=3)
 
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=10, pady=5)
 
@@ -742,8 +760,7 @@ class CreateBuild(BuildSelector):
             inner, MT_SKILL_FIELDS[FIRST_COLUMN_SKILL_COUNT:], start_row=row, col_offset=2)
         self._add_field_group(
             inner,
-            [("mt_feat_1", "Mount Feat:", "mt_f1"),
-             ("mythic_feat", "Mythic Feat:", "myth")],
+            CREATE_BUILD_EXTRA_FIELDS,
             start_row=mount_title_row + 1, col_offset=4)
 
     def _add_field_group(self, parent, fields, start_row: int,
@@ -769,23 +786,25 @@ class CreateBuild(BuildSelector):
         return {col: entry.get().strip()
                 for col, entry in self._entries.items()}
 
-    def update_database(self) -> None:
-        """
-        Validate inputs and insert/update the builds row.
-        Bug #15 fix: stat and skill fields must be numeric or empty.
-        """
+    def _get_build_identity(self, error_title: str = "Incomplete") -> tuple[str, str, str] | None:
         name = self.name_var.get().strip()
         build_type = self.type_var.get().strip()
         level = self.level_var.get().strip()
 
         if not name or not build_type or not level:
-            messagebox.showwarning("Incomplete",
-                                   "Character Name, Build Type, and Level are required.")
-            return
+            messagebox.showerror(
+                error_title,
+                "Character Name, Build Type, and Level are required.",
+            )
+            return None
+        return name, build_type, level
 
+    def _validate_values(self) -> dict[str, str] | None:
+        """
+        Validate inputs before writing the builds row.
+        Bug #15 fix: stat and skill fields must be numeric or empty.
+        """
         values = self._get_values()
-
-        # Bug #15: validate numeric-only fields
         bad_fields = []
         for col, val in values.items():
             if col in NUMERIC_DB_COLS and val != "":
@@ -799,6 +818,48 @@ class CreateBuild(BuildSelector):
                 "The following fields must be numeric (or empty):\n"
                 + "\n".join(bad_fields),
             )
+            return None
+        return values
+
+    def _set_entry_value(self, db_col: str, value) -> None:
+        entry = self._entries[db_col]
+        entry.delete(0, tk.END)
+        if value is not None:
+            entry.insert(0, str(value))
+
+    def load_build(self) -> None:
+        identity = self._get_build_identity()
+        if identity is None:
+            return
+        name, build_type, level = identity
+
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM builds"
+                " WHERE character_name=? AND build_type=? AND character_level=?",
+                (name, build_type, level),
+            ).fetchone()
+
+        if row is None:
+            messagebox.showerror(
+                "Not Found",
+                "No build data found for the selected Character Name, Build Type, and Level.",
+            )
+            return
+
+        self.name_var.set(row["character_name"])
+        self.type_var.set(row["build_type"])
+        self.level_var.set(row["character_level"])
+        for db_col, *_ in CREATE_BUILD_FIELDS:
+            self._set_entry_value(db_col, row[db_col])
+
+    def create_build(self) -> None:
+        identity = self._get_build_identity()
+        if identity is None:
+            return
+        name, build_type, level = identity
+        values = self._validate_values()
+        if values is None:
             return
 
         cols = list(values.keys())
@@ -814,21 +875,63 @@ class CreateBuild(BuildSelector):
             ).fetchone()
 
             if existing:
-                set_clause = ", ".join(f"{c}=?" for c in cols)
-                conn.execute(
-                    f"UPDATE builds SET {set_clause}"
-                    " WHERE character_name=? AND build_type=? AND character_level=?",
-                    vals + [name, build_type, level],
+                messagebox.showerror(
+                    "Build Exists",
+                    f"A build already exists for {name} — {build_type} level {level}."
+                    " Use Load Build and Update Build to modify it.",
                 )
-            else:
-                conn.execute(
-                    f"INSERT INTO builds (character_name, build_type,"
-                    f" character_level, {col_names})"
-                    f" VALUES (?, ?, ?, {placeholders})",
-                    [name, build_type, level] + vals,
-                )
+                return
 
-        messagebox.showinfo("Saved", f"Build saved for {name} — {build_type}"
+            conn.execute(
+                f"INSERT INTO builds (character_name, build_type,"
+                f" character_level, {col_names})"
+                f" VALUES (?, ?, ?, {placeholders})",
+                [name, build_type, level] + vals,
+            )
+
+        messagebox.showinfo("Saved", f"Build created for {name} — {build_type}"
+                            f" level {level}.")
+        BuildSelector.refresh_all_selectors()
+
+    def update_build(self) -> None:
+        identity = self._get_build_identity()
+        if identity is None:
+            return
+        name, build_type, level = identity
+        values = self._validate_values()
+        if values is None:
+            return
+
+        cols = list(values.keys())
+        vals = [values[c] or None for c in cols]
+        set_clause = ", ".join(f"{c}=?" for c in cols)
+
+        with get_connection() as conn:
+            existing = conn.execute(
+                "SELECT rowid FROM builds"
+                " WHERE character_name=? AND build_type=? AND character_level=?",
+                (name, build_type, level),
+            ).fetchone()
+            if existing is None:
+                messagebox.showerror(
+                    "Not Found",
+                    "No build data found for the selected Character Name, Build Type, and Level.",
+                )
+                return
+
+            if not messagebox.askyesno(
+                "Confirm Update",
+                f"Are you sure you want to update {name} — {build_type} level {level}?",
+            ):
+                return
+
+            conn.execute(
+                f"UPDATE builds SET {set_clause}"
+                " WHERE character_name=? AND build_type=? AND character_level=?",
+                vals + [name, build_type, level],
+            )
+
+        messagebox.showinfo("Updated", f"Build updated for {name} — {build_type}"
                             f" level {level}.")
         BuildSelector.refresh_all_selectors()
 
