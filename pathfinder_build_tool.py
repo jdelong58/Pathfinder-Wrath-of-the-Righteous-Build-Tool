@@ -75,7 +75,7 @@ MT_STAT_FIELDS = [
     ("mt_stat_constitution", "Mount CON:", "mt_con"),
     ("mt_stat_intelligence", "Mount INT:", "mt_int"),
     ("mt_stat_wisdom",       "Mount WIS:", "mt_wis"),
-    ("mt_stat_charisma",     "Mount CHA:", "mt_cha"),  # Bug #4 fix: separate from mt_wis
+    ("mt_stat_charisma",     "Mount CHA:", "mt_cha"),  # Bug #4 fix: separate from mt_wisdom
 ]
 
 MT_SKILL_FIELDS = [
@@ -1147,7 +1147,7 @@ def on_close(root: tk.Tk) -> None:
     """
     try:
         os.makedirs("data", exist_ok=True)   # Bug #12 fix
-        with open(COORDS_PATH, "w") as fh:
+        with open(resource_path(COORDS_PATH), "w") as fh:
             fh.write(f"{root.winfo_x()},{root.winfo_y()}")
     except OSError:
         pass  # Never block window close due to I/O error
