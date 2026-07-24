@@ -831,6 +831,12 @@ class CreateBuild(BuildSelector):
         if value is not None:
             entry.insert(0, str(value))
 
+    def _show_build_saved_message(
+        self, title: str, action: str, name: str, build_type: str, level: str
+    ) -> None:
+        messagebox.showinfo(
+            title, f"Build {action} for {name} — {build_type} level {level}.")
+
     def load_build(self) -> None:
         identity = self._get_build_identity(strict=True)
         if identity is None:
@@ -877,7 +883,7 @@ class CreateBuild(BuildSelector):
 
             if existing:
                 messagebox.showerror(
-                    "Build Exists",
+                    "Build Already Exists",
                     f"A build already exists for {name} — {build_type} level {level}. "
                     "Use Update Build to modify it.",
                 )
@@ -890,8 +896,8 @@ class CreateBuild(BuildSelector):
                 [name, build_type, level] + vals,
             )
 
-        messagebox.showinfo("Created", f"Build created for {name} — {build_type}"
-                            f" level {level}.")
+        self._show_build_saved_message(
+            "Created", "created", name, build_type, level)
         BuildSelector.refresh_all_selectors()
 
     def update_build(self) -> None:
@@ -932,8 +938,8 @@ class CreateBuild(BuildSelector):
                 vals + [name, build_type, level],
             )
 
-        messagebox.showinfo("Updated", f"Build updated for {name} — {build_type}"
-                            f" level {level}.")
+        self._show_build_saved_message(
+            "Updated", "updated", name, build_type, level)
         BuildSelector.refresh_all_selectors()
 
 
