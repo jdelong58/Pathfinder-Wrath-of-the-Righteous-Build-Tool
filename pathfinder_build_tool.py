@@ -16,6 +16,7 @@ Tabs (in order):
 import os
 import sys
 import sqlite3
+import weakref
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -33,6 +34,7 @@ FONT_TITLE = ("Arial", 13, "bold")
 FONT_TAB = ("Arial", 11, "bold")
 
 PAD = {"padx": 5, "pady": 3}
+FIRST_COLUMN_SKILL_COUNT = 6
 
 # Ordered field descriptors: (db_column, header_text, short_attr)
 STAT_FIELDS = [
@@ -259,6 +261,8 @@ class BuildSelector(tk.Frame):
     code named them after the module-level frame variables, shadowing them).
     """
 
+    _instances: weakref.WeakSet["BuildSelector"] = weakref.WeakSet()
+
     def __init__(self, parent, **kwargs):
         super().__init__(parent, bg=BG, **kwargs)
         self.name_var = tk.StringVar()
@@ -268,6 +272,7 @@ class BuildSelector(tk.Frame):
         self.name_combo = None
         self.type_combo = None
         self.level_combo = None
+        self.__class__._instances.add(self)
 
     # ── Widget factory ──────────────────────────────────────────────────────
 
@@ -348,6 +353,42 @@ class BuildSelector(tk.Frame):
             ).fetchall()
         self.level_combo["values"] = [r["character_level"] for r in rows]
 
+    def refresh_names(self) -> None:
+        """
+        Refresh selector values while preserving valid current selections.
+        """
+        current_name = self.name_var.get()
+        current_type = self.type_var.get()
+        current_level = self.level_var.get()
+        self.populate_names()
+        names = set(self.name_combo["values"]) if self.name_combo else set()
+        if not current_name or current_name not in names:
+            self.name_var.set("")
+            self.type_var.set("")
+            self.level_var.set("")
+            return
+        self.name_var.set(current_name)
+        self.populate_types()
+        types = set(self.type_combo["values"]) if self.type_combo else set()
+        if not current_type or current_type not in types:
+            self.type_var.set("")
+            self.level_var.set("")
+            return
+        self.type_var.set(current_type)
+        self.populate_levels()
+        levels = set(self.level_combo["values"]) if self.level_combo else set()
+        if current_level and current_level in levels:
+            self.level_var.set(current_level)
+        else:
+            self.level_var.set("")
+
+    @classmethod
+    def refresh_all_selectors(cls) -> None:
+        """Refresh all instantiated BuildSelector tabs after DB writes."""
+        for selector in list(cls._instances):
+            if selector.winfo_exists():
+                selector.refresh_names()
+
 
 # ── Tab 1: View a Build ───────────────────────────────────────────────────────
 
@@ -373,26 +414,26 @@ class LoadBuilds(BuildSelector):
          ("stat_constitution", "Constitution:", "con",  2, 1),
          ("stat_intelligence", "Intelligence:", "int_", 3, 1),
          ("stat_wisdom",       "Wisdom:",       "wis",  4, 1),
-         ("stat_charisma",     "Charisma:",     "cha",  5, 1)],
-        [("feat_1",       "Feat 1:",       "f1",  0, 3),
-         ("feat_2",       "Feat 2:",       "f2",  1, 3),
-         ("class_feat_1", "Class Feat 1:", "cf1", 2, 3),
-         ("class_feat_2", "Class Feat 2:", "cf2", 3, 3),
-         ("spells_1",     "Spells 1:",     "sp1", 4, 3),
-         ("spells_2",     "Spells 2:",     "sp2", 5, 3),
-         ("spells_3",     "Spells 3:",     "sp3", 6, 3),
-         ("c_class",      "Class:",        "cls", 7, 3)],
-        [("skill_Athletics",          "Athletics:",        "athl", 0, 5),
-         ("skill_Mobility",           "Mobility:",         "mobi", 1, 5),
-         ("skill_Trickery",           "Trickery:",         "tric", 2, 5),
-         ("skill_Stealth",            "Stealth:",          "stel", 3, 5),
-         ("skill_Knowledge_Arcana",   "Knwl Arcana:",      "ka",   4, 5),
-         ("skill_Knowledge_World",    "Knwl World:",       "kw",   5, 5),
-         ("skill_Lore_Nature",        "Lore Nature:",      "ln",   6, 5),
-         ("skill_Lore_Religion",      "Lore Religion:",    "lr",   7, 5),
-         ("skill_Perception",         "Perception:",       "perc", 8, 5),
-         ("skill_Persuasion",         "Persuasion:",       "pers", 9, 5),
-         ("skill_Use_Magical_Device", "Use Magic Device:", "umd", 10, 5)],
+         ("stat_charisma",     "Charisma:",     "cha",  5, 1),
+         ("skill_Athletics",        "Athletics:",   "athl", 6, 1),
+         ("skill_Mobility",         "Mobility:",    "mobi", 7, 1),
+         ("skill_Trickery",         "Trickery:",    "tric", 8, 1),
+         ("skill_Stealth",          "Stealth:",     "stel", 9, 1),
+         ("skill_Knowledge_Arcana", "Knwl Arcana:", "ka",  10, 1),
+         ("skill_Knowledge_World",  "Knwl World:",  "kw",  11, 1)],
+        [("skill_Lore_Nature",        "Lore Nature:",      "ln",   0, 3),
+         ("skill_Lore_Religion",      "Lore Religion:",    "lr",   1, 3),
+         ("skill_Perception",         "Perception:",       "perc", 2, 3),
+         ("skill_Persuasion",         "Persuasion:",       "pers", 3, 3),
+         ("skill_Use_Magical_Device", "Use Magic Device:", "umd",  4, 3)],
+        [("feat_1",       "Feat 1:",       "f1",  0, 5),
+         ("feat_2",       "Feat 2:",       "f2",  1, 5),
+         ("class_feat_1", "Class Feat 1:", "cf1", 2, 5),
+         ("class_feat_2", "Class Feat 2:", "cf2", 3, 5),
+         ("spells_1",     "Spells 1:",     "sp1", 4, 5),
+         ("spells_2",     "Spells 2:",     "sp2", 5, 5),
+         ("spells_3",     "Spells 3:",     "sp3", 6, 5),
+         ("c_class",      "Class:",        "cls", 7, 5)],
     )
 
     # Columns 0-1: mount stats; 2-3: mount feat; 4-5: mount skills
@@ -671,32 +712,39 @@ class CreateBuild(BuildSelector):
 
         # Build input grid sections
         make_label(inner, "CHARACTER STATS & SKILLS", title=True).grid(
-            row=0, column=0, columnspan=6, sticky="w", **PAD)
-        row = 1
-        row = self._add_field_group(inner, STAT_FIELDS, start_row=row,
-                                    col_offset=0)
-        row = self._add_field_group(inner, SKILL_FIELDS, start_row=row,
-                                    col_offset=0)
-
+            row=0, column=0, columnspan=2, sticky="w", **PAD)
+        make_label(inner, "CHARACTER SKILLS", title=True).grid(
+            row=0, column=2, columnspan=2, sticky="w", **PAD)
         make_label(inner, "FEATS / SPELLS / CLASS", title=True).grid(
-            row=0, column=3, columnspan=3, sticky="w", **PAD)
-        self._add_field_group(inner, OTHER_FIELDS, start_row=1, col_offset=3)
+            row=0, column=4, columnspan=2, sticky="w", **PAD)
 
+        row = 1
+        row = self._add_field_group(inner, STAT_FIELDS, start_row=row, col_offset=0)
+        self._add_field_group(
+            inner, SKILL_FIELDS[:FIRST_COLUMN_SKILL_COUNT], start_row=row, col_offset=0)
+        self._add_field_group(
+            inner, SKILL_FIELDS[FIRST_COLUMN_SKILL_COUNT:], start_row=1, col_offset=2)
+        self._add_field_group(inner, OTHER_FIELDS, start_row=1, col_offset=4)
+
+        mount_title_row = 14
         make_label(inner, "MOUNT STATS & SKILLS", title=True).grid(
-            row=13, column=0, columnspan=6, sticky="w", **PAD)
-        row = 14
-        row = self._add_field_group(inner, MT_STAT_FIELDS, start_row=row,
-                                    col_offset=0)
-        self._add_field_group(inner, MT_SKILL_FIELDS, start_row=row,
-                              col_offset=0)
-
+            row=mount_title_row, column=0, columnspan=2, sticky="w", **PAD)
+        make_label(inner, "MOUNT SKILLS", title=True).grid(
+            row=mount_title_row, column=2, columnspan=2, sticky="w", **PAD)
         make_label(inner, "MOUNT FEAT / MYTHIC", title=True).grid(
-            row=13, column=3, columnspan=3, sticky="w", **PAD)
+            row=mount_title_row, column=4, columnspan=2, sticky="w", **PAD)
+
+        row = mount_title_row + 1
+        row = self._add_field_group(inner, MT_STAT_FIELDS, start_row=row, col_offset=0)
+        self._add_field_group(
+            inner, MT_SKILL_FIELDS[:FIRST_COLUMN_SKILL_COUNT], start_row=row, col_offset=0)
+        self._add_field_group(
+            inner, MT_SKILL_FIELDS[FIRST_COLUMN_SKILL_COUNT:], start_row=row, col_offset=2)
         self._add_field_group(
             inner,
-            [("mt_feat_1",   "Mount Feat:", "mt_f1"),
+            [("mt_feat_1", "Mount Feat:", "mt_f1"),
              ("mythic_feat", "Mythic Feat:", "myth")],
-            start_row=14, col_offset=3)
+            start_row=mount_title_row + 1, col_offset=4)
 
     def _add_field_group(self, parent, fields, start_row: int,
                          col_offset: int) -> int:
@@ -782,7 +830,7 @@ class CreateBuild(BuildSelector):
 
         messagebox.showinfo("Saved", f"Build saved for {name} — {build_type}"
                             f" level {level}.")
-        self.populate_names()
+        BuildSelector.refresh_all_selectors()
 
 
 # ── Tab 4: Add/Update Mythic Feat ────────────────────────────────────────────
@@ -873,7 +921,7 @@ class AddMythicFeat(BuildSelector):
         messagebox.showinfo("Saved",
                             f"Mythic feat '{feat}' saved for {name}"
                             f" — {build_type} level {level}.")
-        self.populate_names()
+        BuildSelector.refresh_all_selectors()
 
 
 # ── Tab 5: Delete a Build ─────────────────────────────────────────────────────
@@ -931,7 +979,7 @@ class DeleteBuild(BuildSelector):
                 (name, build_type, level),
             )
         messagebox.showinfo("Deleted", "Level deleted.")
-        self.populate_names()
+        BuildSelector.refresh_all_selectors()
         self._clear()
 
     def delete_build(self) -> None:
@@ -950,7 +998,7 @@ class DeleteBuild(BuildSelector):
                 (name, build_type),
             )
         messagebox.showinfo("Deleted", "Build deleted.")
-        self.populate_names()
+        BuildSelector.refresh_all_selectors()
         self._clear()
 
     def delete_character(self) -> None:
@@ -966,7 +1014,7 @@ class DeleteBuild(BuildSelector):
             conn.execute(
                 "DELETE FROM builds WHERE character_name=?", (name,))
         messagebox.showinfo("Deleted", "All builds deleted.")
-        self.populate_names()
+        BuildSelector.refresh_all_selectors()
         self._clear()
 
 
@@ -1123,7 +1171,7 @@ class MythicFeatDelete(BuildSelector):
             )
 
         messagebox.showinfo("Deleted", f"Mythic feat '{feat}' removed.")
-        self.populate_names()
+        BuildSelector.refresh_all_selectors()
         self._clear()
 
 
@@ -1185,6 +1233,16 @@ def main() -> None:
     for title, cls in tabs:
         frame = cls(notebook)
         notebook.add(frame, text=title)
+
+    def _refresh_current_tab(event=None):
+        """Refresh current tab selectors when a notebook tab is selected."""
+        tab_id = notebook.select()
+        if tab_id:
+            frame = notebook.nametowidget(tab_id)
+            if isinstance(frame, BuildSelector):
+                frame.refresh_names()
+
+    notebook.bind("<<NotebookTabChanged>>", _refresh_current_tab)
 
     root.mainloop()
 
