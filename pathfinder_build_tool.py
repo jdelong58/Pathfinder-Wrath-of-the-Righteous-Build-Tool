@@ -16,6 +16,7 @@ Tabs (in order):
 import os
 import sys
 import sqlite3
+import weakref
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -33,6 +34,7 @@ FONT_TITLE = ("Arial", 13, "bold")
 FONT_TAB = ("Arial", 11, "bold")
 
 PAD = {"padx": 5, "pady": 3}
+FIRST_COLUMN_SKILL_COUNT = 6
 
 # Ordered field descriptors: (db_column, header_text, short_attr)
 STAT_FIELDS = [
@@ -259,7 +261,7 @@ class BuildSelector(tk.Frame):
     code named them after the module-level frame variables, shadowing them).
     """
 
-    _instances: list["BuildSelector"] = []
+    _instances: weakref.WeakSet["BuildSelector"] = weakref.WeakSet()
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, bg=BG, **kwargs)
@@ -270,7 +272,7 @@ class BuildSelector(tk.Frame):
         self.name_combo = None
         self.type_combo = None
         self.level_combo = None
-        self.__class__._instances.append(self)
+        self.__class__._instances.add(self)
 
     # ── Widget factory ──────────────────────────────────────────────────────
 
@@ -383,12 +385,9 @@ class BuildSelector(tk.Frame):
     @classmethod
     def refresh_all_selectors(cls) -> None:
         """Refresh all instantiated BuildSelector tabs after DB writes."""
-        live_instances: list["BuildSelector"] = []
-        for selector in cls._instances:
+        for selector in list(cls._instances):
             if selector.winfo_exists():
                 selector.refresh_names()
-                live_instances.append(selector)
-        cls._instances = live_instances
 
 
 # ── Tab 1: View a Build ───────────────────────────────────────────────────────
@@ -721,8 +720,10 @@ class CreateBuild(BuildSelector):
 
         row = 1
         row = self._add_field_group(inner, STAT_FIELDS, start_row=row, col_offset=0)
-        self._add_field_group(inner, SKILL_FIELDS[:6], start_row=row, col_offset=0)
-        self._add_field_group(inner, SKILL_FIELDS[6:], start_row=1, col_offset=2)
+        self._add_field_group(
+            inner, SKILL_FIELDS[:FIRST_COLUMN_SKILL_COUNT], start_row=row, col_offset=0)
+        self._add_field_group(
+            inner, SKILL_FIELDS[FIRST_COLUMN_SKILL_COUNT:], start_row=1, col_offset=2)
         self._add_field_group(inner, OTHER_FIELDS, start_row=1, col_offset=4)
 
         mount_title_row = 14
@@ -735,8 +736,10 @@ class CreateBuild(BuildSelector):
 
         row = mount_title_row + 1
         row = self._add_field_group(inner, MT_STAT_FIELDS, start_row=row, col_offset=0)
-        self._add_field_group(inner, MT_SKILL_FIELDS[:6], start_row=row, col_offset=0)
-        self._add_field_group(inner, MT_SKILL_FIELDS[6:], start_row=mount_title_row + 1, col_offset=2)
+        self._add_field_group(
+            inner, MT_SKILL_FIELDS[:FIRST_COLUMN_SKILL_COUNT], start_row=row, col_offset=0)
+        self._add_field_group(
+            inner, MT_SKILL_FIELDS[FIRST_COLUMN_SKILL_COUNT:], start_row=row, col_offset=2)
         self._add_field_group(
             inner,
             [("mt_feat_1", "Mount Feat:", "mt_f1"),
