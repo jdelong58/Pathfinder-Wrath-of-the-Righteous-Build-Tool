@@ -786,7 +786,9 @@ class CreateBuild(BuildSelector):
         return {col: entry.get().strip()
                 for col, entry in self._entries.items()}
 
-    def _get_build_identity(self, error_title: str = "Incomplete") -> tuple[str, str, str] | None:
+    def _get_build_identity(
+        self, error_title: str = "Missing Required Fields"
+    ) -> tuple[str, str, str] | None:
         name = self.name_var.get().strip()
         build_type = self.type_var.get().strip()
         level = self.level_var.get().strip()
@@ -877,8 +879,8 @@ class CreateBuild(BuildSelector):
             if existing:
                 messagebox.showerror(
                     "Build Exists",
-                    f"A build already exists for {name} — {build_type} level {level}."
-                    " Use Load Build and Update Build to modify it.",
+                    f"A build already exists for {name} — {build_type} level {level}. "
+                    "Use Load Build and Update Build to modify it.",
                 )
                 return
 
