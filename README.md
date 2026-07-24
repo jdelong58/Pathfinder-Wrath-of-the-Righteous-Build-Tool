@@ -11,8 +11,7 @@ if this file is not available, the program will not run.
 
 ## Downloads / Installation
 
-- Download ready-to-run builds from the GitHub Releases page:
-  `https://github.com/jdelong58/Pathfinder-Wrath-of-the-Righteous-Build-Tool/releases`
+- Download ready-to-run builds from the [GitHub Releases page](https://github.com/jdelong58/Pathfinder-Wrath-of-the-Righteous-Build-Tool/releases).
 - The repository now includes a GitHub Actions workflow that can build executables when:
   - a release is published, or
   - you run the workflow manually from the Actions tab.
@@ -25,8 +24,9 @@ if this file is not available, the program will not run.
 ### Linux
 
 - Download `PathfinderBuildTool` from a release.
-- Make it executable and run directly:
-  `chmod +x PathfinderBuildTool && ./PathfinderBuildTool`
+- Make it executable, then run directly:
+  - `chmod +x PathfinderBuildTool`
+  - `./PathfinderBuildTool`
 - Or run `./install.sh` to install it to `~/.local/bin` and add an app-menu entry.
 - Run `./uninstall.sh` to remove that local installation.
 

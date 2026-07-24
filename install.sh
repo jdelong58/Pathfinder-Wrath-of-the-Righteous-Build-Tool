@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_BIN="${1:-$SCRIPT_DIR/PathfinderBuildTool}"
+FALLBACK_ICON="applications-games"
 
 if [[ ! -f "$SOURCE_BIN" ]]; then
   echo "Error: executable not found at '$SOURCE_BIN'."
@@ -20,7 +21,7 @@ TARGET_BIN="$BIN_DIR/PathfinderBuildTool"
 install -m 755 "$SOURCE_BIN" "$TARGET_BIN"
 echo "Installed executable: $TARGET_BIN"
 
-ICON_ENTRY="applications-games"
+ICON_ENTRY="$FALLBACK_ICON"
 if [[ -f "$SCRIPT_DIR/data/logo.png" ]]; then
   ICON_TARGET="$ICON_DIR/PathfinderBuildTool.png"
   install -m 644 "$SCRIPT_DIR/data/logo.png" "$ICON_TARGET"
