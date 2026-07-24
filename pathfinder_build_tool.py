@@ -125,16 +125,29 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(base, relative_path)
 
 
+def get_app_base_dir() -> str:
+    """Return the directory for persistent app data."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def get_database_path() -> str:
+    """Return the SQLite database path and ensure its data directory exists."""
+    data_dir = os.path.join(get_app_base_dir(), "data")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, os.path.basename(DB_PATH))
+
+
 def get_connection() -> sqlite3.Connection:
     """Open the database and return a connection with Row factory enabled."""
-    conn = sqlite3.connect(resource_path(DB_PATH))
+    conn = sqlite3.connect(get_database_path())
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db() -> None:
     """Create the data directory and builds table if they do not already exist."""
-    os.makedirs("data", exist_ok=True)
     with get_connection() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS builds (

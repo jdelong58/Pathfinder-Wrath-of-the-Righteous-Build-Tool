@@ -9,6 +9,37 @@ if this file is not available, the program will not run.
 
 **The Pathfinder: Wrath of the Righteous Build Tool**
 
+## Downloads / Installation
+
+- Download ready-to-run builds from the GitHub Releases page:
+  `https://github.com/jdelong58/Pathfinder-Wrath-of-the-Righteous-Build-Tool/releases`
+- The repository now includes a GitHub Actions workflow that can build executables when:
+  - a release is published, or
+  - you run the workflow manually from the Actions tab.
+
+### Windows
+
+- Download `PathfinderBuildTool.exe` from a release and run it directly.
+- Because this app is unsigned, Windows SmartScreen may warn you. Click **More info** → **Run anyway** if you trust the download.
+
+### Linux
+
+- Download `PathfinderBuildTool` from a release.
+- Make it executable and run directly:
+  `chmod +x PathfinderBuildTool && ./PathfinderBuildTool`
+- Or run `./install.sh` to install it to `~/.local/bin` and add an app-menu entry.
+- Run `./uninstall.sh` to remove that local installation.
+
+### Database location
+
+- The app stores data in `data/pathfinder.db` next to the running script or executable.
+- If you already have a `pathfinder.db`, copy it into that `data/` folder to bring your builds into a packaged executable install.
+
+### Optional icon for packaged builds
+
+- If you commit an icon at `data/logo.ico`, the Windows release build uses it automatically.
+- Linux `install.sh` also installs `data/logo.png` (preferred) or `data/logo.ico` when present; otherwise it falls back to `applications-games`.
+
 Quick Guide
 
 
