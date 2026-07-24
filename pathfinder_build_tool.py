@@ -786,14 +786,15 @@ class CreateBuild(BuildSelector):
         return {col: entry.get().strip()
                 for col, entry in self._entries.items()}
 
-    def _get_build_identity(self) -> tuple[str, str, str] | None:
+    def _get_build_identity(self, *, strict: bool = False) -> tuple[str, str, str] | None:
         name = self.name_var.get().strip()
         build_type = self.type_var.get().strip()
         level = self.level_var.get().strip()
 
         if not name or not build_type or not level:
-            messagebox.showerror(
-                "Missing Required Fields",
+            dialog = messagebox.showerror if strict else messagebox.showwarning
+            dialog(
+                "Missing Required Fields" if strict else "Incomplete",
                 "Character Name, Build Type, and Level are required.",
             )
             return None
@@ -828,7 +829,7 @@ class CreateBuild(BuildSelector):
             entry.insert(0, str(value))
 
     def load_build(self) -> None:
-        identity = self._get_build_identity()
+        identity = self._get_build_identity(strict=True)
         if identity is None:
             return
         name, build_type, level = identity
@@ -847,9 +848,6 @@ class CreateBuild(BuildSelector):
             )
             return
 
-        self.name_var.set(row["character_name"])
-        self.type_var.set(row["build_type"])
-        self.level_var.set(row["character_level"])
         for db_col, *_ in CREATE_BUILD_FIELDS:
             self._set_entry_value(db_col, row[db_col])
 
