@@ -290,9 +290,12 @@ class BuildSelector(tk.Frame):
 
     # ── Widget factory ──────────────────────────────────────────────────────
 
-    def _create_selector_row(self, container: tk.Frame, row: int = 0) -> None:
+    def _create_selector_row(self, container: tk.Frame, row: int = 0,
+                             show_level: bool = True) -> None:
         """
-        Lay out the three standard comboboxes in *container* at grid row *row*.
+        Lay out the standard comboboxes in *container* at grid row *row*.
+        When *show_level* is False the Character Level dropdown is omitted
+        (used by tabs that operate on all levels at once).
         """
         make_label(container, "Character Name:", bold=True).grid(
             row=row, column=0, sticky="e", **PAD)
@@ -308,11 +311,12 @@ class BuildSelector(tk.Frame):
         self.type_combo.grid(row=row, column=3, sticky="w", **PAD)
         self.type_combo.bind("<<ComboboxSelected>>", self.populate_levels)
 
-        make_label(container, "Character Level:", bold=True).grid(
-            row=row, column=4, sticky="e", **PAD)
-        self.level_combo = ttk.Combobox(container, textvariable=self.level_var,
-                                        width=8, state="readonly")
-        self.level_combo.grid(row=row, column=5, sticky="w", **PAD)
+        if show_level:
+            make_label(container, "Character Level:", bold=True).grid(
+                row=row, column=4, sticky="e", **PAD)
+            self.level_combo = ttk.Combobox(container, textvariable=self.level_var,
+                                            width=8, state="readonly")
+            self.level_combo.grid(row=row, column=5, sticky="w", **PAD)
 
     # ── Populate helpers ────────────────────────────────────────────────────
 
@@ -333,7 +337,8 @@ class BuildSelector(tk.Frame):
         self.type_var.set("")
         self.type_combo["values"] = []
         self.level_var.set("")
-        self.level_combo["values"] = []
+        if self.level_combo is not None:
+            self.level_combo["values"] = []
         if not name:
             return
         with get_connection() as conn:
@@ -355,6 +360,8 @@ class BuildSelector(tk.Frame):
         name = self.name_var.get()
         build_type = self.type_var.get()
         self.level_var.set("")
+        if self.level_combo is None:
+            return
         self.level_combo["values"] = []
         if not name or not build_type:
             return
@@ -587,14 +594,14 @@ class LoadMythicPath(BuildSelector):
     """
     'View Mythic Feat' tab.
 
-    Bug #6 fix: load_data now stores the result in ``self.level_1`` rather
-    than accessing the module-level ``mythic_frame`` variable which is the
-    parent container, not the instance.
+    Displays a two-column list (Level | Mythic Feat) for ALL levels of the
+    selected character name + build type.  The Character Level dropdown is
+    omitted from this tab; only Name and Build Type are required.
     """
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, **kwargs)
-        self.level_1 = None          # data label; created lazily in load_data
+        self._result_widgets: list[tk.Widget] = []   # widgets created per-load
         self._build_ui()
         self.populate_names()
 
@@ -603,64 +610,78 @@ class LoadMythicPath(BuildSelector):
     def _build_ui(self) -> None:
         sel = tk.Frame(self, bg=BG)
         sel.pack(fill="x", padx=10, pady=(10, 5))
-        self._create_selector_row(sel, row=0)
+        # show_level=False: no Character Level dropdown on this tab
+        self._create_selector_row(sel, row=0, show_level=False)
         make_button(sel, "Load", self.load_data).grid(
-            row=0, column=6, padx=10, pady=3)
+            row=0, column=4, padx=10, pady=3)
 
         ttk.Separator(self, orient="horizontal").pack(fill="x", padx=10, pady=5)
 
-        self.result_frame = tk.Frame(self, bg=BG)
-        self.result_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        # Scrollable results area
+        canvas = tk.Canvas(self, bg=BG, highlightthickness=0)
+        vsb = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        self.result_frame = tk.Frame(canvas, bg=BG)
+        self.result_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.create_window((0, 0), window=self.result_frame, anchor="nw")
+        canvas.configure(yscrollcommand=vsb.set)
+        canvas.pack(side="left", fill="both", expand=True, padx=(10, 0))
+        vsb.pack(side="right", fill="y")
 
-        make_label(self.result_frame, "Mythic Feat:", bold=True, anchor="e").grid(
-            row=0, column=0, sticky="e", padx=5, pady=5)
-
-    # ── Override populate_levels to show only mythic-feat rows ──────────────
-
-    def populate_levels(self, event=None) -> None:
-        """Only list levels that have a mythic feat recorded."""
-        name = self.name_var.get()
-        build_type = self.type_var.get()
-        self.level_var.set("")
-        self.level_combo["values"] = []
-        if not name or not build_type:
-            return
-        with get_connection() as conn:
-            rows = conn.execute(
-                "SELECT DISTINCT character_level FROM builds"
-                " WHERE character_name=? AND build_type=?"         # Bug #11
-                "   AND mythic_feat IS NOT NULL"
-                " ORDER BY CAST(character_level AS INTEGER)",
-                (name, build_type),
-            ).fetchall()
-        self.level_combo["values"] = [r["character_level"] for r in rows]
+        # Column headers (always visible)
+        make_label(self.result_frame, "Level", bold=True, anchor="center",
+                   width=10).grid(row=0, column=0, sticky="ew", padx=5, pady=(5, 2))
+        make_label(self.result_frame, "Mythic Feat", bold=True, anchor="w",
+                   width=45).grid(row=0, column=1, sticky="w", padx=5, pady=(5, 2))
+        ttk.Separator(self.result_frame, orient="horizontal").grid(
+            row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=2)
 
     # ── Load action ─────────────────────────────────────────────────────────
 
     def load_data(self) -> None:
         name = self.name_var.get()
         build_type = self.type_var.get()
-        level = self.level_var.get()
-        if not name or not build_type or not level:
+        if not name or not build_type:
             messagebox.showwarning(
-                "Incomplete", "Select Character Name, Build Type, and Level.")
+                "Incomplete", "Select Character Name and Build Type.")
             return
 
         with get_connection() as conn:
-            row = conn.execute(
-                "SELECT mythic_feat FROM builds"
-                " WHERE character_name=? AND build_type=? AND character_level=?",
-                (name, build_type, level),
-            ).fetchone()
+            rows = conn.execute(
+                "SELECT character_level, mythic_feat FROM builds"
+                " WHERE character_name=? AND build_type=?"
+                " ORDER BY CAST(character_level AS INTEGER)",
+                (name, build_type),
+            ).fetchall()
 
-        feat = row["mythic_feat"] if row else None
+        # Clear previous result widgets (keep the header at rows 0-1)
+        for widget in self._result_widgets:
+            if widget.winfo_exists():
+                widget.destroy()
+        self._result_widgets.clear()
 
-        # Bug #6 fix: create/update self.level_1 (was mythic_frame.level_1)
-        if self.level_1 is None or not self.level_1.winfo_exists():
-            self.level_1 = make_label(self.result_frame, anchor="w", width=40)
-            self.level_1.grid(row=0, column=1, sticky="w", padx=5, pady=5)
-        self.level_1.config(
-            text=str(feat) if feat else "— no mythic feat recorded —")
+        for i, row in enumerate(rows):
+            grid_row = i + 2   # rows 0-1 are header + separator
+            level_lbl = make_label(
+                self.result_frame,
+                text=str(row["character_level"]),
+                anchor="center",
+                width=10,
+            )
+            level_lbl.grid(row=grid_row, column=0, sticky="ew", padx=5, pady=1)
+
+            feat_text = row["mythic_feat"] or ""
+            feat_lbl = make_label(
+                self.result_frame,
+                text=feat_text,
+                anchor="w",
+                width=45,
+            )
+            feat_lbl.grid(row=grid_row, column=1, sticky="w", padx=5, pady=1)
+
+            self._result_widgets.extend([level_lbl, feat_lbl])
 
 
 # ── Tab 3: Create a Build ─────────────────────────────────────────────────────
