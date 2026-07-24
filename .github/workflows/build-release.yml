@@ -1,0 +1,89 @@
+name: Build Release Executables
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux executable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build dependency
+        run: python -m pip install pyinstaller==6.11.1
+
+      - name: Build Linux executable
+        run: pyinstaller --onefile --windowed --name PathfinderBuildTool pathfinder_build_tool.py
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PathfinderBuildTool-linux
+          path: dist/PathfinderBuildTool
+
+  build-windows:
+    name: Build Windows executable
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build dependency
+        run: python -m pip install pyinstaller==6.11.1
+
+      - name: Build Windows executable (optional icon)
+        shell: pwsh
+        run: |
+          if (Test-Path "data/logo.ico") {
+            pyinstaller --onefile --windowed --name PathfinderBuildTool --icon data/logo.ico pathfinder_build_tool.py
+          } else {
+            pyinstaller --onefile --windowed --name PathfinderBuildTool pathfinder_build_tool.py
+          }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PathfinderBuildTool-windows
+          path: dist/PathfinderBuildTool.exe
+
+  attach-release-assets:
+    name: Attach assets to release
+    runs-on: ubuntu-latest
+    needs: [build-linux, build-windows]
+    if: github.event_name == 'release'
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PathfinderBuildTool-linux
+          path: release-assets
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PathfinderBuildTool-windows
+          path: release-assets
+
+      - name: Attach assets to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/PathfinderBuildTool
+            release-assets/PathfinderBuildTool.exe
