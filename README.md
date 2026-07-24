@@ -35,6 +35,27 @@ if this file is not available, the program will not run.
 - The app stores data in a `data/` subdirectory next to the running script or executable (`data/pathfinder.db`).
 - If you already have a `pathfinder.db`, copy it into that `data/` folder to bring your builds into a packaged executable install.
 
+### Verifying your download (SHA256)
+
+Each release includes a `SHA256SUMS.txt` file so you can confirm your download is intact and unmodified.
+
+**Linux / macOS / SteamOS**
+
+```bash
+sha256sum -c SHA256SUMS.txt
+```
+
+You should see `PathfinderBuildTool: OK` (and `PathfinderBuildTool.exe: OK` if you also downloaded the Windows binary).
+
+**Windows (PowerShell)**
+
+```powershell
+# Check the hash of the downloaded executable
+Get-FileHash PathfinderBuildTool.exe -Algorithm SHA256
+```
+
+Compare the output to the matching line in `SHA256SUMS.txt`. The hash strings should be identical.
+
 ### Optional icon for packaged builds
 
 - If you commit an icon at `data/logo.ico`, the Windows release build uses it automatically.
