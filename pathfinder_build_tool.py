@@ -147,7 +147,7 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Create the data directory and builds table if they do not already exist."""
+    """Create the builds table if it does not already exist."""
     with get_connection() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS builds (
