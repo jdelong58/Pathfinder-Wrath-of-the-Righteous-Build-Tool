@@ -795,6 +795,8 @@ class CreateBuild(BuildSelector):
             dialog = messagebox.showerror if strict else messagebox.showwarning
             dialog(
                 "Missing Required Fields" if strict else "Incomplete",
+                "Cannot load build: Character Name, Build Type, and Level are required."
+                if strict else
                 "Character Name, Build Type, and Level are required.",
             )
             return None
@@ -823,6 +825,7 @@ class CreateBuild(BuildSelector):
         return values
 
     def _set_entry_value(self, db_col: str, value) -> None:
+        """Update an entry registered in self._entries by _build_ui()."""
         entry = self._entries[db_col]
         entry.delete(0, tk.END)
         if value is not None:
