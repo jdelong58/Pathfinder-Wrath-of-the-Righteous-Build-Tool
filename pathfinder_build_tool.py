@@ -786,16 +786,14 @@ class CreateBuild(BuildSelector):
         return {col: entry.get().strip()
                 for col, entry in self._entries.items()}
 
-    def _get_build_identity(
-        self, error_title: str = "Missing Required Fields"
-    ) -> tuple[str, str, str] | None:
+    def _get_build_identity(self) -> tuple[str, str, str] | None:
         name = self.name_var.get().strip()
         build_type = self.type_var.get().strip()
         level = self.level_var.get().strip()
 
         if not name or not build_type or not level:
             messagebox.showerror(
-                error_title,
+                "Missing Required Fields",
                 "Character Name, Build Type, and Level are required.",
             )
             return None
@@ -880,7 +878,7 @@ class CreateBuild(BuildSelector):
                 messagebox.showerror(
                     "Build Exists",
                     f"A build already exists for {name} — {build_type} level {level}. "
-                    "Use Load Build and Update Build to modify it.",
+                    "Use Update Build to modify it.",
                 )
                 return
 
@@ -891,7 +889,7 @@ class CreateBuild(BuildSelector):
                 [name, build_type, level] + vals,
             )
 
-        messagebox.showinfo("Saved", f"Build created for {name} — {build_type}"
+        messagebox.showinfo("Created", f"Build created for {name} — {build_type}"
                             f" level {level}.")
         BuildSelector.refresh_all_selectors()
 
