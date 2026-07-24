@@ -22,7 +22,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install build dependency
-        run: python -m pip install pyinstaller
+        run: python -m pip install pyinstaller==6.11.1
 
       - name: Build Linux executable
         run: pyinstaller --onefile --windowed --name PathfinderBuildTool pathfinder_build_tool.py
@@ -46,7 +46,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install build dependency
-        run: python -m pip install pyinstaller
+        run: python -m pip install pyinstaller==6.11.1
 
       - name: Build Windows executable (optional icon)
         shell: pwsh

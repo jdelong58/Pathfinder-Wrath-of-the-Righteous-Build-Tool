@@ -128,8 +128,8 @@ def resource_path(relative_path: str) -> str:
 def get_app_base_dir() -> str:
     """Return the directory containing the running executable or script."""
     if getattr(sys, "frozen", False):
-        return os.path.dirname(os.path.realpath(sys.executable))
-    return os.path.dirname(os.path.realpath(__file__))
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
 
 
 def get_database_path() -> str:
